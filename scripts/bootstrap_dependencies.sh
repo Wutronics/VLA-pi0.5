@@ -88,6 +88,11 @@ checkout_revision \
   "https://github.com/cvte-robotics/carm_grasp.git" \
   "870ee61747b20d70732673cf4ae932a6c5e822e1"
 
+checkout_revision \
+  "carm-mujoco" \
+  "https://github.com/cvte-robotics/carm-mujoco.git" \
+  "0ea54f12ffe17b2f8f65eebbb51e6eab2b6af643"
+
 if [[ "${WITH_OPENPI}" == true ]]; then
   checkout_revision \
     "openpi" \

@@ -13,6 +13,24 @@
 
 CVTE D3 驱动仍有上机前必须修复或验证的安全项，详见[计划评审](docs/reviews/2026-11-10-plan-review.md)。
 
+## 无真机时的 D3 仿真
+
+项目已接入 CVTE 官方 `carm-mujoco` D3 模型，并提供仅暴露右臂动作的练习入口。首次运行：
+
+```bash
+bash scripts/simulation/setup_simulation.sh
+bash scripts/simulation/run_d3_sim.sh --demo all --render
+```
+
+服务器无图形界面时，可运行同一套无渲染测试：
+
+```bash
+bash scripts/simulation/run_d3_sim.sh --demo all
+.venv-sim/bin/python -m unittest tests.unit.test_d3_right_arm_sim -v
+```
+
+具体练习步骤、预期结果和仿真边界见 [D3 MuJoCo 仿真指南](docs/setup/d3-mujoco-simulation.md)。仿真通过不代表已经满足真机安全门。
+
 ## 服务机快速开始
 
 ```bash
@@ -47,6 +65,7 @@ third_party/              锁定的外部仓库工作副本（默认不提交）
 - [实验实施方案](docs/teleoperation/exoskeleton-teleoperation-plan.md)
 - [现有计划评审](docs/reviews/2026-11-10-plan-review.md)
 - [服务机环境与依赖](docs/setup/server-environment.md)
+- [D3 常用 API 与控制方式](docs/operations/d3-common-api-and-control.md)
 - [数据集约定](docs/data/dataset-spec.md)
 - [实机安全检查清单](docs/operations/hardware-safety-checklist.md)
 - [外部资料与锁定版本](docs/references.md)

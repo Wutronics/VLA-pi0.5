@@ -19,6 +19,12 @@ revision = "870ee61747b20d70732673cf4ae932a6c5e822e1"
 required = true
 purpose = "Eye-in-hand calibration and grasping reference"
 
+[cvte_carm_mujoco]
+url = "https://github.com/cvte-robotics/carm-mujoco.git"
+revision = "0ea54f12ffe17b2f8f65eebbb51e6eab2b6af643"
+required = true
+purpose = "Official CARM A3/D3 MuJoCo models and simulation API"
+
 [physical_intelligence_openpi]
 url = "https://github.com/Physical-Intelligence/openpi.git"
 revision = "215abfb217dbac7d5f1273282331b9b1866c0479"

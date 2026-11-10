@@ -1,0 +1,3 @@
+# Keep these aligned with the versions documented by cvte-robotics/carm-mujoco.
+mujoco==3.2.3
+numpy==1.24.4

@@ -9,6 +9,7 @@
 | [CVTE CArm SDK Demo](https://github.com/cvte-robotics/carm_demo) | `carm` SDK、Python/C++/ROS 示例和 API 说明 | `5e6e4a5bee16222194392c76a12836ba15cf5136` |
 | [CVTE carm-lerobot](https://github.com/cvte-robotics/carm-lerobot) | D3 LeRobot 驱动、数据采集和 π0.5 路径 | `31b1349bc1906765dd522324659a07bd7d281c10` |
 | [CVTE carm_grasp](https://github.com/cvte-robotics/carm_grasp) | 眼在手相机、手眼/夹爪标定与抓取示例 | `870ee61747b20d70732673cf4ae932a6c5e822e1` |
+| [CVTE carm-mujoco](https://github.com/cvte-robotics/carm-mujoco) | D3 MJCF、网格、仿真 API 和交互示例 | `0ea54f12ffe17b2f8f65eebbb51e6eab2b6af643` |
 | [CArm 用户文档中心](https://cvte-bot.feishu.cn/wiki/GyGbwKeWMiqEfDk80QXc9zeCnjf) | 产品、控制器、SDK 下载和最新说明 | 每次上机前人工核对 |
 | [CVTE 柔性机械臂产品页](https://www.cvte.com/product/flexiblemanipulator) | 产品信息 | 参考，不作为 API 契约 |
 
@@ -24,6 +25,7 @@
 ## 已确认接口事实
 
 - D3 是每臂 7 关节的双臂设备，CVTE LeRobot 驱动使用 `carm.CArmDualBot`。
+- CVTE 官方 MuJoCo 仓库提供 D3 双臂 MJCF、网格和 `CArmDualBot` 仿真 API；本项目在其外约束为右臂-only。
 - CVTE 驱动提供 `joint`、`pose`、`both` 三种记录模式；`both` 在其当前实现中不支持推理。
 - `carm` Python 包通过 WebSocket 与控制器通信，SDK Demo 提供状态、关节/末端、夹爪、急停和任务停止接口。
 - LeRobot π0.5 支持相对动作预处理；是否启用必须与数据字段、归一化统计和真机后处理一起验证。
