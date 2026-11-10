@@ -1,0 +1,36 @@
+schema_version: 1
+controller:
+  sdk_class: CArmDualBot
+  address_env: D3_CONTROLLER_ADDRESS
+
+scope:
+  command_left_arm: false
+  command_right_arm: true
+  observe_left_arm: true
+  observe_right_arm: true
+
+motion:
+  representation: joint
+  degrees_of_freedom_per_arm: 7
+  enable_motion_by_default: false
+  reset_on_connect: false
+  reset_pose: null
+  command_rate_hz: null
+  stale_command_timeout_ms: null
+
+gripper:
+  enabled: true
+  open_position: null
+  closed_position: null
+  close_force: null
+
+safety:
+  workspace_limits: null
+  joint_limits: null
+  velocity_limits: null
+  acceleration_limits: null
+  emergency_stop_verified: false
+
+notes:
+  - Fill all null values from the delivered D3 configuration and measured tests.
+  - Never copy the hard-coded reset joint values from the vendor example without validation.

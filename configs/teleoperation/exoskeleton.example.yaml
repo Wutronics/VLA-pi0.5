@@ -1,0 +1,31 @@
+schema_version: 1
+device:
+  model: null
+  sdk_version: null
+  transport: null
+  source_rate_hz: null
+
+mapping:
+  mode: null
+  source_frame: null
+  target_frame: robot_base
+  position_scale: null
+  orientation_scale: null
+  deadband: null
+  low_pass_cutoff_hz: null
+  calibration_id: null
+
+gripper:
+  source_signal: null
+  open_threshold: null
+  close_threshold: null
+  default_on_disconnect: hold
+
+health:
+  require_monotonic_source_timestamp: true
+  stale_after_ms: null
+  action_on_stale: stop
+
+notes:
+  - This file stays incomplete until the exact exoskeleton model and SDK are known.
+  - Record the resolved configuration hash in every episode.

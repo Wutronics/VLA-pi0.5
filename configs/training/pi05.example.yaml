@@ -1,0 +1,29 @@
+schema_version: 1
+backend: lerobot
+policy: pi05
+base_checkpoint: lerobot/pi05_base
+
+dataset:
+  repo_id: null
+  task_prompt: Pick up the medicine box and place it in the target area.
+  split_strategy: by_session_and_scene
+  camera_names: []
+  state_features: []
+  action_features: []
+
+actions:
+  representation: joint
+  use_relative_actions: null
+  relative_exclude_joints:
+    - gripper
+
+training:
+  steps: null
+  batch_size: null
+  dtype: bfloat16
+  seed: null
+  output_dir: null
+
+notes:
+  - Convert this project manifest to the selected backend's native CLI/config after the dataset contract is frozen.
+  - Never start training while camera names, feature order, units, or action semantics are unresolved.

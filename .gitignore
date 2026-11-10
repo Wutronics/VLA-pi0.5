@@ -1,0 +1,65 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.token
+credentials.*
+secrets.*
+xinxi.md
+configs/**/*.local.yaml
+configs/**/*.local.yml
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Downloaded third-party source
+third_party/*
+!third_party/README.md
+
+# Datasets: keep documentation, not payloads
+data/raw/**
+!data/raw/README.md
+data/processed/**
+!data/processed/README.md
+data/samples/**
+!data/samples/README.md
+
+# Training and evaluation artifacts
+artifacts/checkpoints/**
+!artifacts/checkpoints/README.md
+artifacts/logs/**
+!artifacts/logs/README.md
+artifacts/evaluation/**
+!artifacts/evaluation/README.md
+
+# Common large robot-learning outputs
+*.parquet
+*.mp4
+*.avi
+*.mkv
+*.bag
+*.db3
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+wandb/
+runs/

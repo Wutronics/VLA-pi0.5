@@ -1,0 +1,32 @@
+# Source pins reviewed on 2026-11-10. Update deliberately and re-run the
+# hardware/data contract checks before changing any revision.
+
+[cvte_carm_lerobot]
+url = "https://github.com/cvte-robotics/carm-lerobot.git"
+revision = "31b1349bc1906765dd522324659a07bd7d281c10"
+required = true
+purpose = "D3 LeRobot driver, recording pipeline, and LeRobot pi05 policy"
+
+[cvte_carm_demo]
+url = "https://github.com/cvte-robotics/carm_demo.git"
+revision = "5e6e4a5bee16222194392c76a12836ba15cf5136"
+required = true
+purpose = "Authoritative SDK examples and API reference"
+
+[cvte_carm_grasp]
+url = "https://github.com/cvte-robotics/carm_grasp.git"
+revision = "870ee61747b20d70732673cf4ae932a6c5e822e1"
+required = true
+purpose = "Eye-in-hand calibration and grasping reference"
+
+[physical_intelligence_openpi]
+url = "https://github.com/Physical-Intelligence/openpi.git"
+revision = "215abfb217dbac7d5f1273282331b9b1866c0479"
+required = false
+purpose = "Optional upstream pi0.5 training and policy-server path"
+
+[huggingface_lerobot_reference]
+url = "https://github.com/huggingface/lerobot.git"
+revision = "81b8c5bfdd5591ec59e512cfc7ac6db8151c70ee"
+required = false
+purpose = "Upstream API and pi05 documentation reference; not installed by bootstrap"
