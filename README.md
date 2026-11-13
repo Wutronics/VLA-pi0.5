@@ -66,6 +66,7 @@ third_party/              锁定的外部仓库工作副本（默认不提交）
 - [现有计划评审](docs/reviews/2026-11-10-plan-review.md)
 - [服务机环境与依赖](docs/setup/server-environment.md)
 - [D3 常用 API 与控制方式](docs/operations/d3-common-api-and-control.md)
+- [D3 开箱、硬件集成与首次连通指南](docs/operations/d3-hardware-bringup-and-integration.md)
 - [数据集约定](docs/data/dataset-spec.md)
 - [实机安全检查清单](docs/operations/hardware-safety-checklist.md)
 - [外部资料与锁定版本](docs/references.md)
