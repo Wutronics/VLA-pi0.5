@@ -64,3 +64,10 @@ artifacts/evaluation/**
 *.pth
 wandb/
 runs/
+
+# Locally delivered teleoperation SDKs, binaries, logs, and captures
+teleoperator/qnbot_sdk_v1.2/
+teleoperator/*.so
+teleoperator/uploads/
+teleoperator/data/
+teleoperator/datasets_v3*/

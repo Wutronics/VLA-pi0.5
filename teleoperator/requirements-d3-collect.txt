@@ -1,0 +1,4 @@
+# Lightweight hardware-I/O additions. LeRobot is installed from the repository's
+# pinned third_party/carm-lerobot checkout in the Python 3.12 d3-collect environment.
+pyserial>=3.5,<4
+PyYAML>=6.0,<7

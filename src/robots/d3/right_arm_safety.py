@@ -258,6 +258,22 @@ class D3RightArmSafetyAdapter:
         self.disarm_motion("tracking_command_timeout")
         raise SafetyViolation("stale tracking command caused task_stop.")
 
+    def stop_motion(self, reason: str = "operator_requested") -> None:
+        """Stop the controller task and revoke this process' motion authority.
+
+        ``task_stop`` is a controller-wide operation, so this method is only
+        exposed after that path has been independently verified on the target
+        robot.  It is used when teleoperation is toggled off; servo disable is
+        intentionally not used because the D3 has no joint brakes.
+        """
+        if not self._config.global_task_stop_verified:
+            raise SafetyViolation("task_stop has not been independently verified.")
+        result = self._client.task_stop()
+        self.disarm_motion(reason)
+        self._log("task_stop_completed", reason=reason, result=result)
+        if result != 1:
+            raise SafetyViolation(f"vendor task_stop returned {result!r}.")
+
     def close(self) -> None:
         """Disconnect without enabling, resetting, or moving either arm."""
         if self._closed:

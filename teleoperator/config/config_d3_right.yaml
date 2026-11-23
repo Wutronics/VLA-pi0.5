@@ -1,0 +1,98 @@
+# D3 右臂第一阶段配置。默认只做离线数据链路演练，不连接控制器。
+robot:
+  type: d3_right
+  dry_run: true
+  address_env: D3_CONTROLLER_ADDRESS
+  port: 8090
+  timeout_s: 1.0
+
+  # 三项均通过现场验证后才能改为 true；此外仍需运行时确认环境变量。
+  mapping_verified: false
+  tracking_enabled: false
+  global_task_stop_verified: false
+
+  max_joint_step_deg: 1.0
+  minimum_move_duration_s: 3.0
+  stale_command_timeout_ms: 250
+  command_log_path: artifacts/evaluation/d3-right-teleop.jsonl
+  # 仅用于 dry-run 提前发现错误；真机仍以 get_right_config() 返回值为准。
+  joint_limits_rad:
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+
+  # 进入遥操作时捕获参考姿态：q_d3 = q_d3_ref + (q_exo-q_exo_ref)*sign*gain
+  relative_mapping:
+    exo_indices: [0, 1, 2, 3, 4, 5, 6]
+    sign: [1, 1, 1, 1, 1, 1, 1]
+    gain: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+BTN_L_WHITE: 3
+BTN_L_BLUE: 2
+
+exo:
+  port: /dev/ttyACM1
+  baudrate: 2000000
+  red_button_mask: 0x0002
+  # D3 使用参考姿态增量，不能先按另一机器人的绝对关节限位裁剪外骨骼数据。
+  clip_actions: false
+  # 这些数值必须通过 D3 逐关节方向标定确认；未确认时仅允许 dry_run。
+  sign_flip_left: [1, 1, 1, 1, 1, 1, 1]
+  sign_flip_right: [1, 1, 1, 1, 1, 1, 1]
+  zero_offsets_left: [2, 1.57, 0, -1.57, 0, 0, 0]
+  zero_offsets_right: [-2, -1.57, 0, -1.57, 0, 0, 0]
+  joint_limits:
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+
+DATASET_NAME: d3_right_exo_teleop
+OUTPUT_ROOT: data/datasets_v3/d3_right
+ROBOT_TYPE: d3_right
+FPS: 30
+NUM_JOINTS: 7
+CAMERA_WIDTH: 640
+CAMERA_HEIGHT: 480
+CAMERA_INDICES: []
+STREAM_FREQ: 10
+
+name_lists:
+  state_names:
+    - joint0_right
+    - joint1_right
+    - joint2_right
+    - joint3_right
+    - joint4_right
+    - joint5_right
+    - joint6_right
+  joystick_names: [L_axis_x, L_axis_y, L_trigger, R_axis_x, R_axis_y, R_trigger]
+  button_names: [L_B0, L_B1, L_B2, L_B3, R_B0, R_B1, R_B2, R_B3]
+
+feature_specs:
+  observation.state:
+    dtype: float32
+    ref_name_list: state_names
+  action:
+    dtype: float32
+    ref_name_list: state_names
+  observation.joystick:
+    dtype: float32
+    ref_name_list: joystick_names
+  observation.button:
+    dtype: int64
+    ref_name_list: button_names

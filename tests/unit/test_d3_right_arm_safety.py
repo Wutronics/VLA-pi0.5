@@ -121,6 +121,23 @@ class D3RightArmSafetyAdapterTest(unittest.TestCase):
         self.adapter.close()
         self.assertEqual(self.client.calls, [("disconnect", None)])
 
+    def test_stop_motion_calls_verified_global_stop_and_disarms(self) -> None:
+        adapter = D3RightArmSafetyAdapter(
+            self.client,
+            RightArmSafetyConfig(
+                tracking_enabled=True,
+                global_task_stop_verified=True,
+                max_joint_step_rad=0.05,
+            ),
+        )
+        adapter.arm_motion()
+        adapter.track_joint([0.01] + [0.0] * 6)
+        adapter.stop_motion("test_stop")
+
+        self.assertTrue(any(name == "task_stop" for name, _ in self.client.calls))
+        with self.assertRaisesRegex(SafetyViolation, "motion is not armed"):
+            adapter.track_joint([0.02] + [0.0] * 6)
+
 
 if __name__ == "__main__":
     unittest.main()

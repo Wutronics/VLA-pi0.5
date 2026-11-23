@@ -61,6 +61,7 @@ docs/                     方案、评审、环境、数据规范和操作文档
 artifacts/                训练日志、检查点和评测结果（默认不提交）
 scripts/                  依赖安装、自检、采集、转换、训练和评测入口
 src/                      项目自有适配、映射、安全和策略集成代码
+teleoperator/             外骨骼读取、D3 右臂相对映射与 LeRobot 数据录制
 tests/                    单元测试、数据契约测试和硬件测试
 third_party/              锁定的外部仓库工作副本（默认不提交）
 ```
@@ -73,6 +74,7 @@ third_party/              锁定的外部仓库工作副本（默认不提交）
 - [D3 常用 API 与控制方式](docs/operations/d3-common-api-and-control.md)
 - [D3 开箱、硬件集成与首次连通指南](docs/operations/d3-hardware-bringup-and-integration.md)
 - [右臂安全适配器与现场流程](docs/operations/d3-right-arm-safety-adapter.md)
+- [外骨骼到 D3 右臂适配说明](docs/teleoperation/d3-exoskeleton-adaptation.md)
 - [数据集约定](docs/data/dataset-spec.md)
 - [实机安全检查清单](docs/operations/hardware-safety-checklist.md)
 - [外部资料与锁定版本](docs/references.md)
