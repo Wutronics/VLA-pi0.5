@@ -98,6 +98,38 @@ def collect_snapshot(robot: Any) -> dict[str, Any]:
     return snapshot
 
 
+def motion_preflight(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Identify configuration conflicts that must block a later motion command."""
+    blockers: list[dict[str, Any]] = []
+    for side in ("left", "right"):
+        arm = snapshot[side]
+        lower = arm["config"].get("limit_lower")
+        upper = arm["config"].get("limit_upper")
+        positions = arm["joint_position_rad"]
+        if not isinstance(lower, list) or not isinstance(upper, list):
+            blockers.append({"side": side, "reason": "missing_joint_limits"})
+            continue
+        if len(lower) != 7 or len(upper) != 7:
+            blockers.append({"side": side, "reason": "invalid_joint_limit_dimension"})
+            continue
+        for index, (position, low, high) in enumerate(zip(positions, lower, upper)):
+            if not low <= position <= high:
+                blockers.append(
+                    {
+                        "side": side,
+                        "joint_index_1based": index + 1,
+                        "position_rad": position,
+                        "lower_rad": low,
+                        "upper_rad": high,
+                        "reason": "feedback_outside_sdk_limit",
+                    }
+                )
+    return {
+        "eligible_for_motion": not blockers,
+        "blockers": blockers,
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -146,6 +178,7 @@ def main() -> int:
     )
     try:
         snapshot = collect_snapshot(robot)
+        preflight = motion_preflight(snapshot)
         result = {
             "benchmark": "d3-hardware-readonly",
             "executed_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -154,13 +187,18 @@ def main() -> int:
             "motion_commands_sent": False,
             "result": "pass",
             "snapshot": snapshot,
+            "motion_preflight": preflight,
         }
     finally:
         robot.disconnect()
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
-    print(f"PASS: read-only hardware snapshot written to {args.output}")
+    if result["motion_preflight"]["eligible_for_motion"]:
+        print(f"PASS: read-only hardware snapshot written to {args.output}")
+    else:
+        print(f"WARNING: read-only snapshot written to {args.output}; motion is blocked "
+              "by the recorded preflight checks.")
     return 0
 
 

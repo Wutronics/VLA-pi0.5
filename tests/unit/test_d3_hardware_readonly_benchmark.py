@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.evaluate.d3_hardware_readonly_benchmark import collect_snapshot
+from scripts.evaluate.d3_hardware_readonly_benchmark import (
+    collect_snapshot,
+    motion_preflight,
+)
 
 
 class _ReadOnlyRobot:
@@ -17,10 +20,16 @@ class _ReadOnlyRobot:
         return self._record("get_version", "test-sdk")
 
     def get_left_config(self):
-        return self._record("get_left_config", {"dof": 7})
+        return self._record(
+            "get_left_config",
+            {"dof": 7, "limit_lower": [-3.0] * 7, "limit_upper": [3.0] * 7},
+        )
 
     def get_right_config(self):
-        return self._record("get_right_config", {"dof": 7})
+        return self._record(
+            "get_right_config",
+            {"dof": 7, "limit_lower": [-3.0] * 7, "limit_upper": [3.0] * 7},
+        )
 
     def get_left_status(self):
         return self._record("get_left_status", {"arm_is_connected": True})
@@ -69,6 +78,15 @@ class D3HardwareReadonlyBenchmarkTest(unittest.TestCase):
         robot.get_right_config = lambda: {"dof": 6}
         with self.assertRaisesRegex(ValueError, "right arm reports 6 DOF"):
             collect_snapshot(robot)
+
+    def test_motion_preflight_blocks_feedback_outside_limits(self) -> None:
+        snapshot = collect_snapshot(_ReadOnlyRobot())
+        snapshot["right"]["joint_position_rad"][5] = -4.0
+        preflight = motion_preflight(snapshot)
+
+        self.assertFalse(preflight["eligible_for_motion"])
+        self.assertEqual(preflight["blockers"][0]["side"], "right")
+        self.assertEqual(preflight["blockers"][0]["joint_index_1based"], 6)
 
 
 if __name__ == "__main__":
