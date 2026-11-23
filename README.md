@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-仓库已完成方案复核和开发骨架初始化，尚未完成实机联调。当前推荐基线为：
+仓库已完成只读连通、低速右臂单关节点到点验证和开发骨架初始化。当前推荐基线为：
 
 1. 使用 CVTE 的 `carm` SDK 与 `carm-lerobot` 中的 D3 驱动采集数据；
 2. 第一阶段只允许右臂执行动作，左臂保持禁用；
@@ -12,6 +12,11 @@
 4. 优先验证 LeRobot 的 π0.5 端到端路径，保留切换到 OpenPI 训练/策略服务器的接口。
 
 CVTE D3 驱动仍有上机前必须修复或验证的安全项，详见[计划评审](docs/reviews/2026-11-10-plan-review.md)。
+
+右臂软件入口是 `src.robots.d3.D3RightArmSafetyAdapter`：默认只允许低频、最大
+2° 的单次关节增量，且需要每次进程显式预检和授权；连续 `track_*` 默认禁用。
+它不自动使能、复位、切模式、操作夹爪或发送左臂命令。现场使用方式见
+[右臂安全适配器](docs/operations/d3-right-arm-safety-adapter.md)。
 
 ## 无真机时的 D3 仿真
 
@@ -67,6 +72,7 @@ third_party/              锁定的外部仓库工作副本（默认不提交）
 - [服务机环境与依赖](docs/setup/server-environment.md)
 - [D3 常用 API 与控制方式](docs/operations/d3-common-api-and-control.md)
 - [D3 开箱、硬件集成与首次连通指南](docs/operations/d3-hardware-bringup-and-integration.md)
+- [右臂安全适配器与现场流程](docs/operations/d3-right-arm-safety-adapter.md)
 - [数据集约定](docs/data/dataset-spec.md)
 - [实机安全检查清单](docs/operations/hardware-safety-checklist.md)
 - [外部资料与锁定版本](docs/references.md)

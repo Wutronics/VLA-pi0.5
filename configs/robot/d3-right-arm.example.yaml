@@ -15,11 +15,14 @@ motion:
   enable_motion_by_default: false
   reset_on_connect: false
   reset_pose: null
-  command_rate_hz: null
-  stale_command_timeout_ms: null
+  max_joint_step_deg: 2.0
+  minimum_move_duration_s: 3.0
+  command_rate_hz: null # Required only after tracked-control validation.
+  stale_command_timeout_ms: 250
+  tracking_enabled: false
 
 gripper:
-  enabled: true
+  enabled: false # No gripper command is part of the initial right-arm baseline.
   open_position: null
   closed_position: null
   close_force: null
@@ -30,7 +33,12 @@ safety:
   velocity_limits: null
   acceleration_limits: null
   emergency_stop_verified: false
+  global_task_stop_verified: false
+  require_servo_enabled: true
+  require_position_mode: true
+  command_log_path: artifacts/evaluation/d3-right-arm-command.jsonl
 
 notes:
-  - Fill all null values from the delivered D3 configuration and measured tests.
+  - Populate only from delivered D3 configuration and measured tests; do not infer limits from MuJoCo.
   - Never copy the hard-coded reset joint values from the vendor example without validation.
+  - Keep tracking_enabled false until a separate process has validated task_stop during a safe, observed test.

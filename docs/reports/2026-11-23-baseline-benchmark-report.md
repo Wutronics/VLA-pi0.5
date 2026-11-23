@@ -18,7 +18,7 @@
 | 右臂点到点运动 | `bash scripts/simulation/run_d3_sim.sh --demo all` | 通过 | 最大右臂关节误差 `0.00361 rad`；左臂漂移 `0` |
 | 夹爪范围演示 | 同上 | 通过 | 开口 `0.0700 m`，闭合 `0.0181 m` |
 | FK/IK 往返 | 同上 | 通过 | 法兰位置重建误差 `0.000000 m` |
-| 软件单元测试 | `python -m unittest discover -s tests/unit -v` | 通过 | 6/6：模型契约、非法输入拒绝、右臂隔离、FK/IK、真机只读调用约束 |
+| 软件单元测试 | `python -m unittest discover -s tests/unit -v` | 通过 | 16/16：模型契约、右臂隔离、FK/IK、只读约束、关节步进和安全适配器门禁 |
 | 真机 SDK 只读快照 | `d3_hardware_readonly_benchmark.py --execute` | 通过 | SDK `1.0.260819`；左右臂均为 7 DOF；关节位置/速度/力矩和法兰位姿均成功读取；人工归零后的右臂运动预检通过；`motion_commands_sent=false` |
 | 真机右臂单关节动作 | `d3_right_joint_step_benchmark.py --execute --confirm-right-only-joint-step --joint-index 1 --delta-deg 2.0 --duration-s 3.0` | 通过 | SDK 返回 `1`；J1 到位误差 `-0.0453°`；左臂最大漂移 `1.53e-05 rad`；运动后预检通过 |
 
@@ -40,6 +40,18 @@ export D3_CONTROLLER_ADDRESS='<控制器地址>'
 ```
 
 结果会写入 Git 忽略的 `artifacts/evaluation/d3-hardware-readonly.json`，其中不应包含真实 IP、凭据或其他敏感信息。
+
+## 已完成的右臂软件准备
+
+- 新增 `src.robots.d3.D3RightArmSafetyAdapter`：只暴露右臂关节点到点与受控跟随接口；
+  不提供左臂、夹爪、使能、复位或控制模式切换。
+- 默认点到点命令限制为单关节最大 `2°`、持续至少 `3 s`，并在每次发送前读取 SDK
+  限位、关节反馈和右臂 POSITION/伺服状态。
+- 连续 `track_right_joint()` 默认关闭；需独立验证全局 `task_stop()` 后才可显式启用。
+- 增加 JSONL 命令审计入口、右臂配置模板、现场流程与安全清单条目。
+
+上述适配器只进行了离线 fake-SDK 单元测试；硬件只读与单关节脚本的 dry-run 已确认
+不会连接控制器或发出运动命令。它们不替代现场停止链路、夹爪或视觉标定。
 
 ## 现场待完成基准与通过门槛
 
