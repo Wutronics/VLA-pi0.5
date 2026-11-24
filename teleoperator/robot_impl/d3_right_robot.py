@@ -12,6 +12,7 @@ import math
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Iterable
 
 import numpy as np
@@ -76,6 +77,7 @@ class D3RightArmController(BaseRobotController):
         self._robot_reference: np.ndarray | None = None
         self._latest_command = np.zeros(7, dtype=np.float64)
         self._dry_state = np.zeros(7, dtype=np.float64)
+        self._last_rate_limit_report = 0.0
 
     def _selected_exo(self, right_target: Iterable[float]) -> np.ndarray:
         return _vector7(right_target, "right exoskeleton target")[self._indices]
@@ -143,14 +145,30 @@ class D3RightArmController(BaseRobotController):
 
     def set_joint_target(self, left_target, right_target, duration, frequency):
         del left_target, duration, frequency
-        target = self._map_target(right_target)
-        if not np.isfinite(target).all():
+        requested = self._map_target(right_target)
+        if not np.isfinite(requested).all():
             raise SafetyViolation("mapped D3 target contains NaN or infinity")
         if self._joint_limits is not None:
-            if ((target < self._joint_limits[:, 0]) | (target > self._joint_limits[:, 1])).any():
+            if (
+                (requested < self._joint_limits[:, 0])
+                | (requested > self._joint_limits[:, 1])
+            ).any():
                 raise SafetyViolation("mapped D3 target is outside configured joint limits")
-        if np.max(np.abs(target - self._latest_command)) > self._max_step_rad:
-            raise SafetyViolation("mapped D3 target exceeds the per-command joint-step limit")
+
+        delta = requested - self._latest_command
+        target = self._latest_command + np.clip(
+            delta, -self._max_step_rad, self._max_step_rad
+        )
+        if not np.allclose(target, requested, atol=1e-12):
+            now = time.monotonic()
+            if now - self._last_rate_limit_report >= 1.0:
+                largest_requested_deg = math.degrees(float(np.max(np.abs(delta))))
+                print(
+                    "[D3] 目标变化已限速："
+                    f"请求最大 {largest_requested_deg:.2f}°，"
+                    f"本周期最大 {math.degrees(self._max_step_rad):.2f}°"
+                )
+                self._last_rate_limit_report = now
         if self._adapter is not None:
             self._adapter.track_joint(target.tolist())
         self._latest_command = target.copy()

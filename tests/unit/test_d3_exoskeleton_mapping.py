@@ -53,14 +53,16 @@ class D3ExoskeletonMappingTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "permutation"):
             D3RightArmController(config)
 
-    def test_dry_run_rejects_per_command_jump(self) -> None:
+    def test_dry_run_rate_limits_per_command_jump(self) -> None:
         config = _config()
         config["max_joint_step_deg"] = 1.0
         controller = D3RightArmController(config)
         controller.open()
         controller.align_for_teleop([0.0] * 7, [0.0] * 7, 2.0, 10)
-        with self.assertRaisesRegex(RuntimeError, "joint-step limit"):
-            controller.set_joint_target([0.0] * 7, [0.1] + [0.0] * 6, 0.1, 10)
+        controller.set_joint_target([0.0] * 7, [0.1] + [0.0] * 6, 0.1, 10)
+
+        action = controller.action_for_dataset(np.zeros(14, dtype=np.float32))
+        self.assertAlmostEqual(float(np.max(np.abs(action))), np.radians(1.0), places=6)
 
 
 if __name__ == "__main__":
