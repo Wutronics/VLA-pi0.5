@@ -35,7 +35,8 @@ BTN_L_WHITE: 3
 BTN_L_BLUE: 2
 
 exo:
-  port: /dev/ttyACM1
+  # 优先使用 /dev/serial/by-id 下的 Qnbot 稳定设备名。
+  port: auto
   baudrate: 2000000
   red_button_mask: 0x0002
   # D3 使用参考姿态增量，不能先按另一机器人的绝对关节限位裁剪外骨骼数据。

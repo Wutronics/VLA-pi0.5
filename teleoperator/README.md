@@ -38,6 +38,16 @@ python -m pip install carm
 
 > `qnbot_sdk_v1.2/` 是本地交付资产，不提交到 Git；请按下节放入 `teleoperator/`。
 
+Linux 下配置串口权限后需重新登录，或在当前终端执行 `newgrp dialout`：
+
+```bash
+sudo usermod -aG dialout "$USER"
+newgrp dialout
+```
+
+D3 配置默认使用 `port: auto`，优先匹配 `/dev/serial/by-id/*Qnbot*`，因此设备重插后
+即使从 `ttyACM0` 变为 `ttyACM1` 也不需要改配置。
+
 ### 1.2 外骨骼 SDK
 
 将 `qnbot_sdk_v1.2/` 目录放在项目根目录下，确保以下文件存在：

@@ -16,6 +16,10 @@ import numpy as np
 SDK_DIR = Path(__file__).resolve().parent / "qnbot_sdk_v1.2"
 sys.path.insert(0, str(SDK_DIR))
 from qnbot_sdk import QnbotClient, TelemetrySnapshot
+try:
+    from .serial_port import check_serial_access, select_serial_port
+except ImportError:  # direct execution through teleoperator/main.py
+    from serial_port import check_serial_access, select_serial_port
 import yaml
 import time
 # ===== 符号转换：外骨骼 → 机器人 =====
@@ -54,7 +58,7 @@ class ExoReader:
 
     def __init__(self, exo_cfg: dict):
         # 从配置加载参数
-        self.port = exo_cfg["port"]
+        self.port = select_serial_port(str(exo_cfg.get("port", "auto")))
         self.baudrate = exo_cfg["baudrate"]
         self.RED_BUTTON = exo_cfg["red_button_mask"]
 
@@ -86,6 +90,7 @@ class ExoReader:
 
 
     def open(self):
+        check_serial_access(self.port)
         self._client = QnbotClient(port=self.port, baudrate=self.baudrate)
 
         def _cb(snap: TelemetrySnapshot):
