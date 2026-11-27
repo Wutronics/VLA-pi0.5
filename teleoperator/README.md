@@ -15,6 +15,25 @@ D3 模式使用参考姿态上的相对增量映射，白键不会执行旧机�
 必须完成逐关节映射和 `task_stop()` 验证，详见
 [`docs/teleoperation/d3-exoskeleton-adaptation.md`](../docs/teleoperation/d3-exoskeleton-adaptation.md)。
 
+## 本地采集监控网页
+
+运行 `scripts/collect/run_d3_right_dashboard.sh` 会启动只读网页和采集程序：
+
+```bash
+cd /home/ubuntu/wt
+export D3_CONTROLLER_ADDRESS=10.42.0.101
+export D3_TELEOP_EXECUTE=I_UNDERSTAND_D3_RIGHT_ARM_ONLY
+bash scripts/collect/run_d3_right_dashboard.sh
+```
+
+浏览器打开 <http://127.0.0.1:8765>。网页显示外骨骼、右臂命令/反馈、Episode、采样性能、
+磁盘空间和相机画面；它没有任何机械臂控制、使能或停止接口。网页或 Dashboard 进程异常
+不会向 D3 发送命令，也不会阻塞采集主循环。
+
+相机由采集程序独占打开，录制器和网页从同一缓存读取帧。请在
+`config_d3_right_live_test.yaml` 的 `cameras` 填写稳定的 `/dev/v4l/by-id/...` 路径；
+配置相机但启动失败时，程序会拒绝录制，以免产生缺失图像的 Episode。
+
 通过外骨骼设备和人形机器人设备，采集关节数据 + 摄像头图像，生成标准 LeRobot v3.0 格式数据集。
 
 > 基于 `lerobot>=0.6.0`，数据集格式为 codebase_version v3.0。

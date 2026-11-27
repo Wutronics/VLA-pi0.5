@@ -7,17 +7,25 @@
 """
 
 import argparse
+from collections import deque
+from datetime import datetime
+import shutil
 import time
 import threading
 from pathlib import Path
-from datetime import datetime
-import cv2
 import yaml
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from read_exo import ExoReader
 # from read_robot import RobotReader
 from robot_base import BaseRobotController
 import numpy as np
+
+try:  # Supports both `python teleoperator/main.py` and `python -m teleoperator.main`.
+    from dashboard.camera_broker import CameraBroker, CameraSpec
+    from dashboard.telemetry import TelemetryPublisher
+except ImportError:  # pragma: no cover - module execution path
+    from teleoperator.dashboard.camera_broker import CameraBroker, CameraSpec
+    from teleoperator.dashboard.telemetry import TelemetryPublisher
 
 
 def create_robot_controller(robot_cfg: dict) -> BaseRobotController:
@@ -80,17 +88,29 @@ class ExoTeleopRecorder:
 
         self.episode_idx = 0
         self.frame_count = 0
+        self.skipped_camera_frames = 0
         self.t0 = 0.0
-        self.add_frame_times = []
+        self.add_frame_times = deque(maxlen=300)
         self.last_report = 0.0
 
         # 硬件句柄
         self.exo = None
         self.robot_ctrl = None
         # self.robot_reader = None
-        self.caps = dict()
+        self.camera_broker: CameraBroker | None = None
+        self.camera_shapes: dict[str, tuple[int, int]] = {}
+        self.camera_feature_names: dict[str, str] = {}
+        self.camera_required_unavailable = False
         self.has_video = False
         self.dataset = None
+
+        # The dashboard is a best-effort observer.  It owns no actuator and
+        # never sends a D3 command, even when a browser is open.
+        self.dashboard_cfg = dict(self.config.get("dashboard", {}))
+        self._telemetry: TelemetryPublisher | None = None
+        self._last_telemetry_tick = 0.0
+        self._last_preview_sequence: dict[str, int] = {}
+        self.events: deque[dict[str, str]] = deque(maxlen=20)
 
         # ========== 录制线程相关 ==========
         self._recorder_thread = None
@@ -102,6 +122,42 @@ class ExoTeleopRecorder:
         self._exo_lock = threading.Lock()
         self._latest_exo_data = None
 
+    def _event(self, message: str) -> None:
+        """Record a concise operator-visible event without changing control flow."""
+        self.events.appendleft({"time": datetime.now().strftime("%H:%M:%S"), "message": message})
+
+    def _camera_specs(self) -> list[CameraSpec]:
+        """Accept legacy integer indices and stable `/dev/v4l/by-id` paths."""
+        configured = self.config.get("cameras")
+        specs: list[CameraSpec] = []
+        if configured:
+            for entry in configured:
+                device = entry["device"]
+                name = str(entry.get("name", f"camera_{device}"))
+                specs.append(
+                    CameraSpec(
+                        name=name,
+                        device=device,
+                        width=int(entry.get("width", self.CAMERA_WIDTH)),
+                        height=int(entry.get("height", self.CAMERA_HEIGHT)),
+                        fps=float(entry.get("fps", 30)),
+                    )
+                )
+        else:
+            specs = [
+                CameraSpec(
+                    name=f"camera_{idx}",
+                    device=int(idx),
+                    width=self.CAMERA_WIDTH,
+                    height=self.CAMERA_HEIGHT,
+                )
+                for idx in self.CAMERA_INDICES
+            ]
+        names = [spec.name for spec in specs]
+        if len(names) != len(set(names)):
+            raise ValueError("camera names must be unique")
+        return specs
+
     def _load_config(self, config_path: str) -> dict:
         cfg_file = Path(config_path)
         if not cfg_file.exists():
@@ -111,27 +167,25 @@ class ExoTeleopRecorder:
         print(f"✅ 加载配置：{cfg_file.resolve()}")
         return config
 
-    def _init_cameras(self) -> dict:
-        caps = {}
-        for idx in self.CAMERA_INDICES:
-            cap = cv2.VideoCapture(idx)
-            if not cap.isOpened():
-                print(f"[摄像头] /dev/video{idx} 打开失败，跳过")
+    def _init_cameras(self) -> dict[str, tuple[int, int]]:
+        specs = self._camera_specs()
+        if not specs:
+            print("[摄像头] 未配置；Dashboard 将显示无画面状态")
+            return {}
+        self.camera_broker = CameraBroker(
+            specs,
+            preview_fps=float(self.dashboard_cfg.get("preview_fps", 15)),
+        )
+        shapes = self.camera_broker.start()
+        for spec in specs:
+            shape = shapes.get(spec.name)
+            if shape is None:
+                print(f"[摄像头] {spec.name} ({spec.device}) 打开失败，录制时将拒绝缺帧")
+                self._event(f"摄像头 {spec.name} 打开失败")
                 continue
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.CAMERA_WIDTH)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.CAMERA_HEIGHT)
-            cap.set(cv2.CAP_PROP_FPS, 30)
-            # 预热
-            for _ in range(5):
-                cap.read()
-            ret, frame = cap.read()
-            if not ret:
-                cap.release()
-                continue
-            caps[f"observation.images.camera_{idx}"] = (cap, (frame.shape[1], frame.shape[0]))
-            print(f"[摄像头] video{idx} 就绪 {frame.shape[1]}×{frame.shape[0]}")
-        return caps
+            w, h = shape
+            print(f"[摄像头] {spec.name} 就绪 {w}×{h}")
+        return shapes
 
     def _build_features(self) -> dict:
         features = {}
@@ -145,8 +199,8 @@ class ExoTeleopRecorder:
                 "names": name_array
             }
         # 自动追加相机video特征
-        for cam_name, (_, (w, h)) in self.caps.items():
-            features[cam_name] = {
+        for feature_name, (w, h) in self.camera_shapes.items():
+            features[feature_name] = {
                 "dtype": "video",
                 "shape": (h, w, 3),
                 "names": ["height", "width", "channel"]
@@ -164,9 +218,34 @@ class ExoTeleopRecorder:
         if not self.robot_ctrl.requires_home:
             self.state = self.State.HOME
         # self.robot_reader = RobotReader()
-        self.caps = self._init_cameras()
-        self.has_video = len(self.caps) > 0
+        camera_shapes = self._init_cameras()
+        self.camera_shapes = {
+            f"observation.images.{name}": shape for name, shape in camera_shapes.items()
+        }
+        self.camera_feature_names = {
+            f"observation.images.{name}": name for name in camera_shapes
+        }
+        self.has_video = len(self.camera_shapes) > 0
+        self.camera_required_unavailable = bool(
+            self.camera_broker
+            and len(camera_shapes) != len(self.camera_broker.configured_names)
+        )
         print("[硬件初始化] 完成\n")
+
+    def init_dashboard(self) -> None:
+        # Existing collection configurations keep their prior behaviour unless
+        # they explicitly opt in to the local dashboard.
+        if not self.dashboard_cfg.get("enabled", False):
+            return
+        endpoint = str(self.dashboard_cfg.get("telemetry_endpoint", "tcp://127.0.0.1:8766"))
+        try:
+            self._telemetry = TelemetryPublisher(endpoint)
+            print(f"[Dashboard] 遥测发布已启动：{endpoint}")
+            self._event("Dashboard 遥测发布已启动")
+        except Exception as exc:
+            # Dashboard failures cannot prevent a safe collector startup.
+            print(f"[Dashboard] 未启动：{exc}")
+            self._event(f"Dashboard 未启动：{exc}")
 
     def release_hardware(self):
         print("\n[释放硬件资源]")
@@ -177,8 +256,12 @@ class ExoTeleopRecorder:
                 self.robot_ctrl.close()
             # if self.robot_reader:
             #     self.robot_reader.close()
-            for cap, _ in self.caps.values():
-                cap.release()
+            if self.camera_broker:
+                self.camera_broker.close()
+                self.camera_broker = None
+            if self._telemetry:
+                self._telemetry.close()
+                self._telemetry = None
             print("硬件全部关闭")
         except Exception as e:
             print(f"释放异常: {e}")
@@ -219,10 +302,18 @@ class ExoTeleopRecorder:
                                 "observation.button": exo_data["button"],
                                 "task": "teleop",
                             }
-                            for cam_name, (cap, _) in self.caps.items():
-                                ret, frame = cap.read()
-                                if ret:
-                                    frame_data[cam_name] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            missing_camera = False
+                            if self.camera_broker:
+                                for feature_name, camera_name in self.camera_feature_names.items():
+                                    frame = self.camera_broker.get_rgb(camera_name)
+                                    if frame is None:
+                                        missing_camera = True
+                                        break
+                                    frame_data[feature_name] = frame
+                            if missing_camera:
+                                self.skipped_camera_frames += 1
+                                self._record_last_tick = next_tick
+                                continue
                             try:
                                 self.validate_frame_data(frame_data)
                             except ValueError as err:
@@ -239,6 +330,77 @@ class ExoTeleopRecorder:
                         print(f"[录制线程异常] {e}")
             # 短休眠降低CPU占用
             time.sleep(0.0005)
+
+    def _robot_telemetry(self) -> dict:
+        if self.robot_ctrl is None:
+            return {"connection": "uninitialized"}
+        snapshot = getattr(self.robot_ctrl, "telemetry_snapshot", None)
+        if callable(snapshot):
+            try:
+                return dict(snapshot())
+            except Exception as exc:
+                return {"connection": "error", "error": str(exc)}
+        return {"connection": "unsupported"}
+
+    def _publish_dashboard(self, exo_data: dict | None, now: float, force: bool = False) -> None:
+        if self._telemetry is None:
+            return
+        status_hz = max(float(self.dashboard_cfg.get("status_hz", 10)), 1.0)
+        if not force and now - self._last_telemetry_tick < 1.0 / status_hz:
+            return
+        self._last_telemetry_tick = now
+        elapsed = now - self.t0 if self.state == self.State.RECORDING and self.t0 else 0.0
+        output_path = str(self.dataset.root) if self.dataset is not None else None
+        try:
+            # OUTPUT_ROOT is a prefix and normally does not exist until the
+            # first dataset is created, so measure its nearest existing parent.
+            disk_path = Path(self.OUTPUT_ROOT)
+            while not disk_path.exists() and disk_path.parent != disk_path:
+                disk_path = disk_path.parent
+            free_disk_gb = shutil.disk_usage(disk_path).free / 1024**3
+        except OSError:
+            free_disk_gb = None
+        right_action = []
+        if exo_data is not None:
+            action = exo_data.get("action")
+            if action is not None and len(action) >= 14:
+                right_action = np.asarray(action[7:14], dtype=np.float64).tolist()
+        cameras = self.camera_broker.status() if self.camera_broker else {}
+        payload = {
+            "collection": {
+                "state": self.state,
+                "episode_index": self.episode_idx,
+                "frame_count": self.frame_count,
+                "skipped_camera_frames": self.skipped_camera_frames,
+                "elapsed_s": elapsed,
+                "actual_fps": self.frame_count / elapsed if elapsed > 0 else None,
+                "target_fps": self.FPS,
+                "add_frame_p95_ms": (
+                    float(np.percentile(self.add_frame_times, 95)) if self.add_frame_times else None
+                ),
+                "dataset_root": output_path,
+                "free_disk_gb": free_disk_gb,
+            },
+            "exoskeleton": {
+                "connected": exo_data is not None,
+                "right_action_rad": right_action,
+                "red_button": bool(exo_data.get("red_button")) if exo_data else False,
+            },
+            "robot": self._robot_telemetry(),
+            "cameras": cameras,
+            "events": list(self.events),
+        }
+        self._telemetry.publish_status(payload)
+        if self.camera_broker:
+            for camera_name in self.camera_broker.configured_names:
+                preview = self.camera_broker.get_preview(camera_name)
+                if preview is None:
+                    continue
+                jpeg, metadata = preview
+                if self._last_preview_sequence.get(camera_name) == metadata["sequence"]:
+                    continue
+                self._last_preview_sequence[camera_name] = metadata["sequence"]
+                self._telemetry.publish_frame(camera_name, jpeg, metadata)
 
     def start_recorder_thread(self):
         """启动录制线程"""
@@ -311,9 +473,11 @@ class ExoTeleopRecorder:
 
     def run(self):
         self.init_hardware()
+        self.init_dashboard()
         self.start_recorder_thread()
         self._print_banner()
         features = self._build_features()
+        self._publish_dashboard(None, time.perf_counter(), force=True)
 
         try:
             while True:
@@ -338,6 +502,7 @@ class ExoTeleopRecorder:
                 if white_btn and not self.prev_white_btn:
                     if not self.robot_ctrl.requires_home:
                         print("[⚪] D3 右臂模式不执行自动归位")
+                        self._event("白键：D3 模式不执行自动归位")
                     elif self.state in (self.State.IDLE, self.State.HOME):
                         was_idle = (self.state == self.State.IDLE)
                         print(f"\n[⚪] 执行归位")
@@ -346,6 +511,7 @@ class ExoTeleopRecorder:
                             if was_idle:
                                 self.state = self.State.HOME
                                 print("[⚪] 归位完成 → HOME状态")
+                                self._event("归位完成")
                         except Exception as e:
                             print(f"归位失败：{e}")
                     else:
@@ -371,6 +537,7 @@ class ExoTeleopRecorder:
                             time.sleep(3)
                         self.state = self.State.TELEOP
                         print("[🔴] 进入遥操作")
+                        self._event("进入遥操作")
                     elif self.state == self.State.TELEOP:
                         self.robot_ctrl.stop_motion("red_button_teleop_exit")
                         self.state = (
@@ -379,6 +546,7 @@ class ExoTeleopRecorder:
                             else self.State.IDLE
                         )
                         print("[🔴] 退出遥操作")
+                        self._event("退出遥操作")
                     elif self.state == self.State.RECORDING:
                         # 停止录制
                         self._is_recording = False
@@ -394,12 +562,19 @@ class ExoTeleopRecorder:
                             else self.State.IDLE
                         )
                         print("[🔴] 停止录制，退出遥操作")
+                        self._event("停止录制并退出遥操作")
                 self.prev_teleop_btn = teleop_btn
 
                 # ========== 蓝色按钮：录制启停 ==========
                 if record_btn and not self.prev_record_btn:
                     if self.state == self.State.TELEOP:
                         # 开启录制
+                        if self.camera_required_unavailable:
+                            print("[🔵] 摄像头未就绪，拒绝开始会产生缺失图像的 Episode")
+                            self._event("拒绝开始录制：至少一路配置摄像头未就绪")
+                            self.prev_record_btn = record_btn
+                            self._publish_dashboard(exo_data, now, force=True)
+                            continue
                         if self.dataset is None:
                             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                             out_path = Path(f"{self.OUTPUT_ROOT}_{stamp}")
@@ -419,9 +594,11 @@ class ExoTeleopRecorder:
                         self._is_recording = True
                         self._record_last_tick = time.perf_counter()
                         self.frame_count = 0
+                        self.skipped_camera_frames = 0
                         self.add_frame_times.clear()
                         self.t0 = now
                         print(f"[🔵] 开始录制 Episode {self.episode_idx}")
+                        self._event(f"开始录制 Episode {self.episode_idx}")
 
                     elif self.state == self.State.RECORDING:
                         # 关闭录制
@@ -431,6 +608,7 @@ class ExoTeleopRecorder:
                             elapsed = now - self.t0
                             fps_real = self.frame_count / elapsed if elapsed > 0 else 0
                             print(f"\n[■] Episode {self.episode_idx} 保存 | 帧数:{self.frame_count} 实际fps:{fps_real:.1f}")
+                            self._event(f"保存 Episode {self.episode_idx}：{self.frame_count} 帧")
                             self.episode_idx += 1
                         self.frame_count = 0
                         self.state = self.State.TELEOP
@@ -455,10 +633,12 @@ class ExoTeleopRecorder:
                     joystick = exo_data["joystick"]
                     v,w = self.joystick_to_vel(joystick[0], joystick[1])
                     self.robot_ctrl.set_speed(v, w)
+                self._publish_dashboard(exo_data, now)
                 time.sleep(1.0 / self.STREAM_FREQ)
 
         except KeyboardInterrupt:
             print("\n\n[用户中断，准备退出]")
+            self._event("用户中断，正在安全退出")
             # 关闭录制
             self._is_recording = False
             if self.state == self.State.RECORDING and self.frame_count > 0:

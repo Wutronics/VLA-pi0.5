@@ -1,0 +1,125 @@
+# D3 右臂首次真机连续跟随配置。
+# 这是显式测试配置；默认 config_d3_right.yaml 始终保持 dry-run。
+robot:
+  type: d3_right
+  dry_run: false
+  address_env: D3_CONTROLLER_ADDRESS
+  port: 8090
+  timeout_s: 1.0
+
+  # 仅在已现场确认映射、右臂空载和实体急停可达时使用本配置。
+  mapping_verified: true
+  tracking_enabled: true
+  global_task_stop_verified: true
+
+  # 1:1 快速连续跟随；速度仍明显低于控制器的 180 deg/s 上限。
+  max_command_step_deg: 3.0
+  # 目标领先真实反馈超过该窗口时钳制目标，不退出遥操作。
+  max_feedback_error_deg: 10.0
+  max_velocity_deg_s: 45.0
+  max_acceleration_deg_s2: 180.0
+  max_reference_delta_deg: 45.0
+  stream_frequency_hz: 30.0
+  minimum_move_duration_s: 3.0
+  stale_command_timeout_ms: 250
+  tracking_status_interval_ms: 200
+  command_log_path: artifacts/evaluation/d3-right-live-test.jsonl
+
+  joint_limits_rad:
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+
+  relative_mapping:
+    exo_indices: [0, 1, 2, 3, 4, 5, 6]
+    sign: [-1, 1, 1, -1, -1, 1, -1]
+    gain: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+BTN_L_WHITE: 3
+BTN_L_BLUE: 2
+
+exo:
+  port: auto
+  baudrate: 2000000
+  red_button_mask: 0x0002
+  clip_actions: false
+  sign_flip_left: [1, 1, 1, 1, 1, 1, 1]
+  sign_flip_right: [1, 1, 1, 1, 1, 1, 1]
+  zero_offsets_left: [2, 1.57, 0, -1.57, 0, 0, 0]
+  zero_offsets_right: [-2, -1.57, 0, -1.57, 0, 0, 0]
+  joint_limits:
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+    - [-2.7925, 2.7925]
+    - [-3.1416, 0.2618]
+    - [-2.7925, 2.7925]
+    - [-2.0944, 2.0944]
+    - [-2.7925, 2.7925]
+    - [-1.5708, 1.5708]
+    - [-1.5708, 1.5708]
+
+DATASET_NAME: d3_right_exo_teleop
+OUTPUT_ROOT: data/datasets_v3/d3_right
+ROBOT_TYPE: d3_right
+FPS: 30
+NUM_JOINTS: 7
+CAMERA_WIDTH: 640
+CAMERA_HEIGHT: 480
+CAMERA_INDICES: []
+STREAM_FREQ: 30
+
+# Local read-only monitoring.  The web page has no actuator endpoint; closing
+# it cannot stop or alter teleoperation.  It only listens on this development
+# PC, not the robot controller network interface.
+dashboard:
+  enabled: true
+  telemetry_endpoint: tcp://127.0.0.1:8766
+  status_hz: 10
+  preview_fps: 15
+
+# Add real cameras here once hardware is available.  Prefer a stable
+# /dev/v4l/by-id path rather than /dev/video0, whose number may change after a
+# reboot.  Leave empty while no camera is connected; the dashboard will show
+# an explicit "not configured" state.
+cameras: []
+# cameras:
+#   - name: right_wrist
+#     device: /dev/v4l/by-id/usb-YOUR_CAMERA-if00-video-index0
+#     width: 640
+#     height: 480
+#     fps: 30
+
+name_lists:
+  state_names:
+    - joint0_right
+    - joint1_right
+    - joint2_right
+    - joint3_right
+    - joint4_right
+    - joint5_right
+    - joint6_right
+  joystick_names: [L_axis_x, L_axis_y, L_trigger, R_axis_x, R_axis_y, R_trigger]
+  button_names: [L_B0, L_B1, L_B2, L_B3, R_B0, R_B1, R_B2, R_B3]
+
+feature_specs:
+  observation.state:
+    dtype: float32
+    ref_name_list: state_names
+  action:
+    dtype: float32
+    ref_name_list: state_names
+  observation.joystick:
+    dtype: float32
+    ref_name_list: joystick_names
+  observation.button:
+    dtype: int64
+    ref_name_list: button_names

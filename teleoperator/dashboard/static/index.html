@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>D3 数据采集监控</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div><h1>D3 数据采集监控</h1><p>只读监控 · 不提供运动控制</p></div>
+      <div id="collector-status" class="badge offline">采集进程未连接</div>
+    </header>
+    <main>
+      <section class="card camera-card">
+        <div class="card-title"><h2>实时摄像头</h2><span id="camera-summary">未配置摄像头</span></div>
+        <div id="cameras" class="camera-grid"><div class="empty">等待采集程序发布相机状态</div></div>
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>采集会话</h2><span id="state" class="badge">IDLE</span></div>
+        <div id="collection-metrics" class="metrics"></div>
+      </section>
+      <section class="card workflow-card">
+        <div class="card-title"><h2>数采操作流程</h2><span>实体按钮操作</span></div>
+        <ol class="workflow">
+          <li><strong>开始前：</strong>确认右臂已使能、工作区清空、实体急停可达；检查页面中 D3、外骨骼、相机状态均正常。</li>
+          <li><strong>进入跟随：</strong>按外骨骼左手<span class="key red">红键</span>。系统先捕获外骨骼和 D3 的参考姿态，随后进入 <code>TELEOP</code>。</li>
+          <li><strong>开始录制：</strong>在 <code>TELEOP</code> 下按<span class="key blue">蓝键</span>，进入 <code>RECORDING</code>；确认帧数与实际 FPS 持续增长。</li>
+          <li><strong>结束本段：</strong>再次按<span class="key blue">蓝键</span>，保存当前 Episode 并保持跟随，可继续下一段。</li>
+          <li><strong>停止跟随：</strong>按<span class="key red">红键</span>。若正在录制，会先保存当前 Episode，再发送安全停止并退出遥操作。</li>
+          <li><strong>异常处理：</strong>机械臂异常、人员进入工作区或状态灯异常时，立即使用实体急停；不要依赖网页处理紧急情况。</li>
+        </ol>
+        <p class="workflow-note">白键在当前 D3 右臂模式不执行自动归零。网页仅监控，关闭网页不会停止机械臂。</p>
+      </section>
+      <section class="card wide">
+        <div class="card-title"><h2>右臂与外骨骼</h2><span id="robot-health" class="badge offline">未知</span></div>
+        <table><thead><tr><th>关节</th><th>外骨骼</th><th>命令</th><th>D3反馈</th><th>误差</th><th>限位余量</th></tr></thead><tbody id="joints"></tbody></table>
+      </section>
+      <section class="card wide">
+        <div class="card-title"><h2>最近事件</h2><span>只保留最新 20 条</span></div>
+        <ol id="events" class="events"><li>等待采集进程连接</li></ol>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

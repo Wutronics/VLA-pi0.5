@@ -2,3 +2,6 @@
 # pinned third_party/carm-lerobot checkout in the Python 3.12 d3-collect environment.
 pyserial>=3.5,<4
 PyYAML>=6.0,<7
+fastapi>=0.110,<1
+uvicorn>=0.27,<1
+pyzmq>=25,<28
